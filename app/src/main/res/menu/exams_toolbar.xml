@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
-    <item android:id="@+id/settings_toolbar_add"
+    <item android:id="@+id/exams_add"
         android:title="Добавить"
         android:icon="@drawable/playlist_plus"
         app:showAsAction="always" />
-    <item android:id="@+id/settings_toolbar_import"
+    <item android:id="@+id/exams_import"
         android:title="Импортировать"
         app:showAsAction="always"
         android:icon="@drawable/ic_import" />
-    <item android:id="@+id/settings_toolbar_export"
+    <item android:id="@+id/exams_export"
         android:title="Экспортировать"
         android:icon="@drawable/export"
         app:showAsAction="always" />
-    <item android:id="@+id/settings_toolbar_save"
+    <item android:id="@+id/exams_save"
         android:icon="@drawable/check"
         android:iconTint="@android:color/holo_green_light"
         android:title="Сохранить"

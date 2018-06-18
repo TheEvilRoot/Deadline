@@ -16,7 +16,7 @@
         app:layout_constraintTop_toTopOf="parent" />
 
     <android.support.v7.widget.RecyclerView
-        android:id="@+id/settings_list"
+        android:id="@+id/exams_list"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_marginBottom="8dp"
@@ -27,7 +27,7 @@
         tools:listitem="@layout/exam_layout" />
 
     <LinearLayout
-        android:id="@+id/settings_bottom_toolbar"
+        android:id="@+id/exams_bottom_toolbar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="#ffffff"
@@ -39,7 +39,7 @@
         app:layout_constraintStart_toStartOf="parent">
 
         <ImageButton
-            android:id="@+id/settings_bottom_toolbar_edit"
+            android:id="@+id/exams_bottom_toolbar_edit"
             android:layout_width="wrap_content"
             android:layout_height="32dp"
             android:layout_weight="0.33"
@@ -49,7 +49,7 @@
             app:srcCompat="@drawable/pencil" />
 
         <ImageButton
-            android:id="@+id/settings_bottom_toolbar_delete"
+            android:id="@+id/exams_bottom_toolbar_delete"
             android:layout_width="wrap_content"
             android:layout_height="32dp"
             android:layout_weight="0.33"
@@ -59,7 +59,7 @@
             app:srcCompat="@drawable/delete_forever" />
 
         <ImageButton
-            android:id="@+id/settings_bottom_toolbar_cancel"
+            android:id="@+id/exams_bottom_toolbar_cancel"
             android:layout_width="wrap_content"
             android:layout_height="32dp"
             android:layout_weight="0.33"

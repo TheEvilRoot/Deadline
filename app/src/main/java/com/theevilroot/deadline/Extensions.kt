@@ -79,3 +79,10 @@ fun View.hide(animation: Animation) {
 fun TextView.clear() {
     this.text = ""
 }
+
+fun <E> List<E>.isContains(e: E): Boolean {
+    for(i in this)
+        if(i == e)
+            return true
+    return false
+}

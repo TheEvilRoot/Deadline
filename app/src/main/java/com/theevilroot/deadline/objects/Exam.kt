@@ -8,4 +8,11 @@ class Exam(val examName: String, val examDate: Long) {
     }
     var selected: Boolean = false
 
+    override fun equals(other: Any?): Boolean {
+        if(other !is Exam)
+            return false
+        val o = other as Exam
+        return o.examName == this.examName || o.examDate == this.examDate
+    }
+
 }

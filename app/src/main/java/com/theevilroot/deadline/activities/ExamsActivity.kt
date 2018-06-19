@@ -3,7 +3,6 @@ package com.theevilroot.deadline.activities
 import android.annotation.SuppressLint
 import android.app.Dialog
 import android.content.DialogInterface
-import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.Drawable
 import android.os.Build
@@ -31,7 +30,6 @@ import ru.pearx.carbide.collections.event.ListEventHandler
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.collections.HashMap
 import kotlin.concurrent.thread
 
 class ExamsActivity: AppCompatActivity() {
@@ -131,10 +129,10 @@ class ExamsActivity: AppCompatActivity() {
                         }
                         true
                     },
-                    {name, date, time, _, _ ->
+                    { name, date, time, _, _ ->
                         "Изменить имя на '${name.text}', дату и время на ${date.text} ${time.text}?"
                     },
-                    {name, date, time, _, dialog,di ->
+                    { name, date, time, _, dialog,di ->
                         try {
                             val d = dateFormat.parse("${date.text} ${time.text}")
                             buffer[buffer.indexOf(exam)] = Exam(name.text.toString(), d.time)
@@ -396,6 +394,4 @@ class ExamsActivity: AppCompatActivity() {
          }
         return super.onOptionsItemSelected(item)
     }
-
-
 }

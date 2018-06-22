@@ -35,29 +35,21 @@ import kotlin.concurrent.thread
 class ExamsActivity: AppCompatActivity() {
 
     val layout = R.layout.exams_activity
-
     private val slideIn by load(android.R.anim.slide_in_left)
     private val slideOut by load(android.R.anim.slide_out_right)
-
-    @SuppressLint("SimpleDateFormat")
-    val timeFormat = SimpleDateFormat("HH:mm")
-    @SuppressLint("SimpleDateFormat")
-    val dateFormat = SimpleDateFormat("dd.MM.yyyy HH:mm")
-
     private val list: RecyclerView by bind(R.id.exams_list)
     private val bottomToolbar: LinearLayout by bind(R.id.exams_bottom_toolbar)
     private val bottomToolbarEdit: ImageButton by bind(R.id.exams_bottom_toolbar_edit)
     private val bottomToolbarDelete: ImageButton by bind(R.id.exams_bottom_toolbar_delete)
     private val bottomToolbarCancel: ImageButton by bind(R.id.exams_bottom_toolbar_cancel)
     private val toolBar: Toolbar by bind(R.id.toolbar)
-
+    private var isChanged: Boolean = false
     private val adapter = ExamAdapter({ exam, pos ->
         handleUnselection(exam, pos)
     }, { exam, pos ->
         handleSelection(exam, pos)
         true
     })
-
     private fun handleSelection(exam: Exam, pos: Int) {
         if(!buffer[pos].selected) {
             buffer[pos].selected = true
@@ -67,7 +59,7 @@ class ExamsActivity: AppCompatActivity() {
         }
         val single = buffer.filter { it.selected }.size == 1
         bottomToolbarEdit.isEnabled = single
-        bottomToolbarEdit.setColorFilter(if(single) ThePreferences.activeColor else ThePreferences.inactiveColor)
+        bottomToolbarEdit.setColorFilter(if(single) Colors.activeColor() else Colors.inactiveColor())
     }
     private fun handleUnselection(exam: Exam, pos: Int) {
         if(buffer[pos].selected) {
@@ -80,12 +72,10 @@ class ExamsActivity: AppCompatActivity() {
             }
             if(selectedCount < 2) {
                 bottomToolbarEdit.isEnabled = true
-                bottomToolbarEdit.setColorFilter(ThePreferences.activeColor)
+                bottomToolbarEdit.setColorFilter(Colors.activeColor())
             }
         }
     }
-
-    private var isChanged: Boolean = false
     private val buffer: EventList<Exam> = EventList(ArrayList(), object: ListEventHandler<Exam> {
         override fun onAdd(t: Exam?) { this@ExamsActivity.isChanged = true }
         override fun onAdd(t: MutableCollection<out Exam>?) { this@ExamsActivity.isChanged = true }
@@ -96,7 +86,6 @@ class ExamsActivity: AppCompatActivity() {
         override fun onClear(col: MutableCollection<Exam>?) { this@ExamsActivity.isChanged = true }
         override fun onSet(index: Int, prevValue: Exam?, newValue: Exam?) { this@ExamsActivity.isChanged = true }
     })
-    
     @SuppressLint("SetTextI18n")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -108,7 +97,7 @@ class ExamsActivity: AppCompatActivity() {
         buffer.addAll(TheHolder.examList)
         isChanged = false
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.statusBarColor = ThePreferences.backgroundColor
+            window.statusBarColor = Colors.backgroundColor()
         }
         list.layoutManager = LinearLayoutManager(this)
         list.adapter = adapter
@@ -162,66 +151,11 @@ class ExamsActivity: AppCompatActivity() {
             bottomToolbar.hide(slideOut)
         }
     }
-
-    private fun showExamEdit(title: String,
-                             prepareFunc: (EditText, EditText, EditText, Button, Dialog) -> Unit,
-                             saveCondition: (EditText, EditText, EditText, Button, Dialog) -> Boolean,
-                             acceptMessage: (EditText, EditText, EditText, Button, Dialog) -> String,
-                             onAccept: (EditText, EditText, EditText, Button, Dialog, DialogInterface) -> Unit,
-                             onDenied: (EditText, EditText, EditText, Button, Dialog, DialogInterface) -> Unit) {
-        val view = layoutInflater.inflate(R.layout.exam_edit_layout, null, false)
-        val dialog = AlertDialog.Builder(this).setTitle(title).setView(view).create()
-        val name = view.findViewById<EditText>(R.id.exam_edit_name)
-        val save = view.findViewById<Button>(R.id.exam_edit_save)
-        val cancel = view.findViewById<Button>(R.id.exam_edit_cancel)
-        val date = view.findViewById<EditText>(R.id.exam_edit_date)
-        val time = view.findViewById<EditText>(R.id.exam_edit_time)
-        prepareFunc(name, date, time, cancel, dialog)
-        cancel.setOnClickListener {
-            name.text.clear()
-            dialog.dismiss()
-        }
-        save.setOnClickListener {
-            if(!saveCondition(name, date, time, cancel, dialog))
-                return@setOnClickListener
-            AlertDialog.Builder(this).
-                    setTitle("Подтверждение").
-                    setMessage(acceptMessage(name, date, time, cancel, dialog)).
-                    setPositiveButton("Да", {di, _ ->
-                        onAccept(name, date, time, cancel, dialog, di)
-                    }).setNegativeButton("Не-а", {di, _ ->
-                onDenied(name, date, time, cancel, dialog, di)
-            }).create().show()
-        }
-
-        dialog.show()
-    }
-
-    private fun showAlert(title: String,
-                          message: String = "",
-                          icon: Drawable?,
-                          positiveText: String = "Ок",
-                          positive: (DialogInterface) -> Unit = {_ -> },
-                          negativeText: String? = null,
-                          negative: (DialogInterface) -> Unit = {_ -> },
-                          neutralText: String? = null,
-                          neutral: (DialogInterface) -> Unit = {_ -> }): AlertDialog {
-        val builder = AlertDialog.Builder(this).setTitle(title).setMessage(message).setPositiveButton(positiveText, {di,_ -> positive(di)})
-        if(negativeText != null)
-            builder.setNegativeButton(negativeText, {di, _ -> negative(di)})
-        if(negativeText != null)
-            builder.setNeutralButton(neutralText, {di, _ -> neutral(di)})
-        if(icon != null)
-            builder.setIcon(icon)
-        return builder.create()
-    }
-
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.exams_toolbar, menu)
         return true
     }
-
-    fun saveExams(file: File,onSuccess: () -> Unit ,onError: (String) -> Unit) {
+    private fun saveExams(file: File, onSuccess: () -> Unit, onError: (String) -> Unit) {
         thread(true) {
             if(!file.exists()) {
                 runOnUiThread {
@@ -242,7 +176,7 @@ class ExamsActivity: AppCompatActivity() {
             runOnUiThread { onSuccess() }
         }
     }
-
+    @SuppressLint("SetTextI18n")
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         when(item.itemId) {
             android.R.id.home ->  {
@@ -270,7 +204,8 @@ class ExamsActivity: AppCompatActivity() {
             R.id.exams_add -> {
                 showExamEdit("Новый экзамен",
                         {_, _, time, _, _ ->
-                            time.setText("12:00") },
+                            time.setText("12:00")
+                        },
                         {name, _, time, _,_ ->
                             if(name.text.isBlank() || time.text.isBlank()) {
                                 Toast.makeText(this, "Заполните все поля", Toast.LENGTH_SHORT).show()
@@ -391,7 +326,58 @@ class ExamsActivity: AppCompatActivity() {
                 }
                 chooser.show()
             }
-         }
+        }
         return super.onOptionsItemSelected(item)
+    }
+    private fun showExamEdit(title: String,
+                             prepareFunc: (EditText, EditText, EditText, Button, Dialog) -> Unit,
+                             saveCondition: (EditText, EditText, EditText, Button, Dialog) -> Boolean,
+                             acceptMessage: (EditText, EditText, EditText, Button, Dialog) -> String,
+                             onAccept: (EditText, EditText, EditText, Button, Dialog, DialogInterface) -> Unit,
+                             onDenied: (EditText, EditText, EditText, Button, Dialog, DialogInterface) -> Unit) {
+        val view = layoutInflater.inflate(R.layout.exam_edit_layout, null, false)
+        val dialog = AlertDialog.Builder(this).setTitle(title).setView(view).create()
+        val name = view.findViewById<EditText>(R.id.exam_edit_name)
+        val save = view.findViewById<Button>(R.id.exam_edit_save)
+        val cancel = view.findViewById<Button>(R.id.exam_edit_cancel)
+        val date = view.findViewById<EditText>(R.id.exam_edit_date)
+        val time = view.findViewById<EditText>(R.id.exam_edit_time)
+        prepareFunc(name, date, time, cancel, dialog)
+        cancel.setOnClickListener {
+            name.text.clear()
+            dialog.dismiss()
+        }
+        save.setOnClickListener {
+            if(!saveCondition(name, date, time, cancel, dialog))
+                return@setOnClickListener
+            AlertDialog.Builder(this).
+                    setTitle("Подтверждение").
+                    setMessage(acceptMessage(name, date, time, cancel, dialog)).
+                    setPositiveButton("Да", {di, _ ->
+                        onAccept(name, date, time, cancel, dialog, di)
+                    }).setNegativeButton("Не-а", {di, _ ->
+                onDenied(name, date, time, cancel, dialog, di)
+            }).create().show()
+        }
+
+        dialog.show()
+    }
+    private fun showAlert(title: String,
+                          message: String = "",
+                          icon: Drawable?,
+                          positiveText: String = "Ок",
+                          positive: (DialogInterface) -> Unit = {_ -> },
+                          negativeText: String? = null,
+                          negative: (DialogInterface) -> Unit = {_ -> },
+                          neutralText: String? = null,
+                          neutral: (DialogInterface) -> Unit = {_ -> }): AlertDialog {
+        val builder = AlertDialog.Builder(this).setTitle(title).setMessage(message).setPositiveButton(positiveText, {di,_ -> positive(di)})
+        if(negativeText != null)
+            builder.setNegativeButton(negativeText, {di, _ -> negative(di)})
+        if(negativeText != null)
+            builder.setNeutralButton(neutralText, {di, _ -> neutral(di)})
+        if(icon != null)
+            builder.setIcon(icon)
+        return builder.create()
     }
 }

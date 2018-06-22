@@ -12,10 +12,14 @@ import android.util.Log
 import android.view.View
 import android.widget.ImageButton
 import android.widget.TextView
+import android.widget.Toast
+import com.google.gson.GsonBuilder
+import com.google.gson.JsonArray
+import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.nipunbirla.boxloader.BoxLoaderView
 import com.theevilroot.deadline.*
-import com.theevilroot.deadline.objects.Exam
+import com.theevilroot.deadline.objects.*
 import com.theevilroot.deadline.service.CallbackListener
 import com.theevilroot.deadline.service.CallbackType
 import com.theevilroot.deadline.service.TimerService
@@ -24,9 +28,7 @@ import java.io.File
 import kotlin.concurrent.thread
 
 class MainActivity: AppCompatActivity(), CallbackListener {
-
     val layout = R.layout.main_activity
-
     private val days: TextView by bind(R.id.days_view)
     private val minutes: TextView by bind(R.id.minutes_view)
     private val hours: TextView by bind(R.id.hours_view)
@@ -37,12 +39,10 @@ class MainActivity: AppCompatActivity(), CallbackListener {
     private val loader: BoxLoaderView by bind(R.id.loader)
     private val examSettings:ImageButton by bind(R.id.exam_settings_button)
     private val settings: ImageButton by bind(R.id.settings_button)
-
     private val slideIn by load(android.R.anim.slide_in_left)
     private val slideOut by load(android.R.anim.slide_out_right)
     private val fadeIn by load(android.R.anim.fade_in)
     private val fadeOut by load(android.R.anim.fade_out)
-
     private var service: TimerService? = null
     private var serviceBound = false
     private val serviceConnection = TimerServiceConnection(onConnect = { srv ->
@@ -54,15 +54,14 @@ class MainActivity: AppCompatActivity(), CallbackListener {
         serviceBound = false
         service = null
     })
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(layout)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.statusBarColor = ThePreferences.secondBackgroundColor
+            window.statusBarColor = Colors.secondBackgroundColor()
         }
-        settings.setColorFilter(ThePreferences.iconsColor)
-        examSettings.setColorFilter(ThePreferences.iconsColor)
+        settings.setColorFilter(Colors.iconsColor())
+        examSettings.setColorFilter(Colors.iconsColor())
         examSettings.setOnClickListener {
             if(!TheHolder.isConfigLoaded)
                 return@setOnClickListener
@@ -70,66 +69,69 @@ class MainActivity: AppCompatActivity(), CallbackListener {
             startActivity(intent)
         }
         settings.setOnClickListener {
-            val intent = Intent(this, ThemePreferencesActivity::class.java)
+            val intent = Intent(this, PreferencesActivity::class.java)
             startActivity(intent)
         }
-        if(!TheHolder.isConfigLoaded)
-            loadConfig()
-        else
+        if(!TheHolder.isConfigLoaded) {
+            load()
+        } else {
             startTimer()
+        }
     }
-
-    private fun loadConfig() {
+    private fun load() {
         loader.setSpeed(10)
         thread(true) {
-            try {
-                val file = File(filesDir, "config")
-                if (!file.exists()) {
-                    val exams = writeAndGet(file)
-                    Thread.sleep(2000)
-                    runOnUiThread { onLoad(exams) }
-                    return@thread
-                }
-                val exams = parseConfig(file)
-                Thread.sleep(2000)
-                val themeFile = File(filesDir, "theme")
-                if(themeFile.exists()) {
-                    val json = JsonParser().parse(themeFile.readText()).asJsonObject
-                    ThePreferences.activeColor = Color.parseColor(json["activeColor"].asString)
-                    ThePreferences.iconsColor = Color.parseColor(json["iconsColor"].asString)
-                    ThePreferences.backgroundColor = Color.parseColor(json["backgroundColor"].asString)
-                    ThePreferences.inactiveColor = Color.parseColor(json["inactiveColor"].asString)
-                    ThePreferences.secondBackgroundColor = Color.parseColor(json["secondBackgroundColor"].asString)
-                    ThePreferences.selectionColor = Color.parseColor(json["selectionColor"].asString)
-                    ThePreferences.textColor = Color.parseColor(json["textColor"].asString)
-                }
-                runOnUiThread { onLoad(exams) }
+            try{
+                val config = File(filesDir, "config")
+                val prefs = File(filesDir, "preferences")
+                val exams = if(config.exists()) parseConfig(config) else writeAndGetConfig(config)
+                val preferences = if(prefs.exists()) parsePreferences(prefs) else writeAndGetPreferences(prefs)
+                runOnUiThread { onLoad(exams, preferences) }
             }catch (e: Exception) {
                 runOnUiThread { onError(e) }
             }
+
         }
     }
-
     override fun onResume() {
         super.onResume()
         if(TheHolder.needRefresh)
             startTimer()
     }
-
-    private fun writeAndGet(file: File): List<Exam> {
+    private fun writeAndGetConfig(file: File): List<Exam> {
         file.createNewFile()
         file.writeText("[]")
         return parseConfig(file)
     }
-
+    private fun parsePreferences(file: File): List<Preference> {
+        val json = JsonParser().parse(file.readText()).asJsonArray
+        return json.map { it.asJsonObject }.map {
+            if(it["isGroup"].asBoolean)
+                Preference(true, it["title"].asString)
+            else
+                Preference(false, name = it["name"].asString, description = it["description"].asString, type = when(it["type"].asString.toLowerCase()) {
+                    "int" -> PT_INT
+                    "string" -> PT_STRING
+                    "time" -> PT_TIME
+                    "date" -> PT_DATE
+                    "boolean" -> PT_BOOLEAN
+                    else -> PT_STRING
+                }, value = it["value"].asString, id = it["id"].asString)
+        }
+    }
+    private fun writeAndGetPreferences(file: File): List<Preference> {
+        file.createNewFile()
+        writePreferences(file)
+        return TheHolder.userPreferences
+    }
     private fun parseConfig(file: File): List<Exam> {
         val json = JsonParser().parse(file.readText()).asJsonArray
         return json.map { it.asJsonObject }.map { Exam(it["name"].asString, it["date"].asLong) }
     }
-
     @UiThread
-    private fun onLoad(exams: List<Exam>) {
+    private fun onLoad(exams: List<Exam>, preferences: List<Preference>) {
         TheHolder.examList = exams.sortedBy { it.examDate }
+        TheHolder.userPreferences = preferences
         TheHolder.isConfigLoaded = true
         if(exams.isEmpty()) {
             alert.text = getString(R.string.text_nothing)
@@ -152,12 +154,10 @@ class MainActivity: AppCompatActivity(), CallbackListener {
             }
         }
     }
-
     @UiThread
     private fun onError(e: Exception?) {
         e?.printStackTrace()
     }
-
     @SuppressLint("SetTextI18n")
     override fun callback(type: CallbackType, data:Bundle) {
         runOnUiThread {
@@ -217,18 +217,13 @@ class MainActivity: AppCompatActivity(), CallbackListener {
             }
         }
     }
-
-    private fun formatWord(count: Int, variants: Array<String>): String =
-            if((count - count % 10) % 100 != 10) {
+    private fun formatWord(count: Int, variants: Array<String>): String = if((count - count % 10) % 100 != 10) {
                 when {
                     count % 10 == 1 -> variants[0]
                     count % 10 in 2..4 -> variants[1]
                     else -> variants[2]
                 }
-            }else{
-                variants[2]
-            }
-
+            }else{ variants[2] }
     override fun onDestroy() {
         super.onDestroy()
         if(serviceBound)

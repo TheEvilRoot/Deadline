@@ -1,4 +1,5 @@
 package com.theevilroot.deadline
+import android.annotation.SuppressLint
 import android.content.Context
 import android.support.annotation.AnimRes
 import android.support.annotation.IdRes
@@ -8,6 +9,39 @@ import android.view.View
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.widget.TextView
+import com.google.gson.GsonBuilder
+import com.google.gson.JsonArray
+import com.google.gson.JsonObject
+import com.theevilroot.deadline.objects.*
+import java.io.File
+import java.text.SimpleDateFormat
+
+@SuppressLint("SimpleDateFormat")
+val timeFormat = SimpleDateFormat("HH:mm")
+@SuppressLint("SimpleDateFormat")
+val dateFormat = SimpleDateFormat("dd.MM.yyyy HH:mm")
+
+fun writePreferences(file: File) {
+    file.writeText(GsonBuilder().setPrettyPrinting().create().toJson(JsonArray().apply { TheHolder.userPreferences.map { JsonObject().apply {
+        addProperty("isGroup", it.isGroup)
+        if(it.isGroup) {
+            addProperty("title", it.title)
+        }else {
+            addProperty("name", it.name)
+            addProperty("description", it.description)
+            addProperty("type", when (it.type) {
+                PT_STRING -> "string"
+                PT_BOOLEAN -> "boolean"
+                PT_DATE -> "date"
+                PT_TIME -> "time"
+                PT_INT -> "int"
+                else -> "string"
+            })
+            addProperty("value", it.value)
+            addProperty("id", it.id)
+        }
+    } }.forEach { add(it) } }))
+}
 
 /**
  * Bind View from activity with 'by' operator

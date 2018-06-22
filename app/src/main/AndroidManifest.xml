@@ -22,7 +22,7 @@
             </intent-filter>
         </activity>
         <activity android:name=".activities.ExamsActivity" />
-        <activity android:name=".activities.ThemePreferencesActivity" />
+        <activity android:name=".activities.PreferencesActivity" />
         <service android:name=".service.TimerService" />
     </application>
 

@@ -54,8 +54,9 @@ class ExamsActivity: AppCompatActivity() {
         if(!buffer[pos].selected) {
             buffer[pos].selected = true
             adapter.notifyItemChanged(pos)
-            if(bottomToolbar.visibility != View.VISIBLE)
+            if(bottomToolbar.visibility != View.VISIBLE) {
                 bottomToolbar.show(slideIn)
+            }
         }
         val single = buffer.filter { it.selected }.size == 1
         bottomToolbarEdit.isEnabled = single

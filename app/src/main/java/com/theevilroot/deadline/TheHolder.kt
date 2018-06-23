@@ -20,7 +20,7 @@ object TheHolder {
     var isConfigLoaded = false
     var examList: List<Exam> = emptyList()
 
-    var userPreferences = listOf<Preference>(
+    var userPreferences = listOf(
             Preference(true, "Таймер"),
             Preference(false,
                     id = "timer_notif",

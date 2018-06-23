@@ -16,6 +16,7 @@ import android.widget.Toast
 import com.theevilroot.deadline.R
 import com.theevilroot.deadline.TheHolder
 import com.theevilroot.deadline.activities.MainActivity
+import com.theevilroot.deadline.formatWord
 import java.util.*
 
 class TimerService: Service() {
@@ -38,15 +39,22 @@ class TimerService: Service() {
     var isTimerActive = false
 
     private lateinit var notification: NotificationCompat.Builder
-    private lateinit var nitificationManager: NotificationManagerCompat
+    private lateinit var notificationManager: NotificationManagerCompat
+    private lateinit var intent: Intent
+    private lateinit var pendingIntent: PendingIntent
+    private val HOUR_NOTIFICATION_ID = 9090010
 
     private fun stopTimer() {
         runnable.willStopped = true
     }
     fun startTimer() {
-        nitificationManager = NotificationManagerCompat.from(applicationContext)
+        notificationManager = NotificationManagerCompat.from(applicationContext)
         notification = NotificationCompat.Builder(applicationContext).
-                setSmallIcon(R.drawable.ic_launcher_icon)
+                setSmallIcon(R.drawable.ic_launcher_icon).
+                setStyle(NotificationCompat.BigTextStyle().bigText("Если учишь, не буду мешать, а если нет - УЧИ!!").setSummaryText("ВНИМАНИЕ!")).
+                setLargeIcon(BitmapFactory.decodeResource(applicationContext.resources, R.drawable.ic_launcher_icon))
+        intent = Intent(applicationContext, MainActivity::class.java)
+        pendingIntent = TaskStackBuilder.create(applicationContext).apply { addParentStack(MainActivity::class.java); addNextIntent(intent) }.getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT)
         handler.postDelayed(runnable, 0)
         dispatchCallback(CallbackType.START, Bundle.EMPTY)
     }
@@ -69,10 +77,10 @@ class TimerService: Service() {
             bundle.putInt("seconds", secs.toInt())
             bundle.putInt("exam", TheHolder.examList.indexOf(nextExam))
             dispatchCallback(CallbackType.TICK, bundle)
-            if(days == 0L && hours <= 23L && secs == 0L && TheHolder.get("timer_notif")!!.value.toBoolean()) {
-                val intent = Intent(applicationContext, MainActivity::class.java)
-                val pending = TaskStackBuilder.create(applicationContext).apply { addParentStack(MainActivity::class.java); addNextIntent(intent) }.getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT)
-                nitificationManager.notify(88818, notification.setContentIntent(pending).setContentTitle("До экзамена '${nextExam.examName}' осталось чуть меньше суток!!!").setStyle(NotificationCompat.BigTextStyle().bigText("Если учишь, не буду мешать, а если нет - УЧИ!!").setSummaryText("ВНИМАНИЕ!")).build())
+            if(days == 0L && hours <= 23L && mins == 59L && secs == 59L) {
+                notificationManager.notify(HOUR_NOTIFICATION_ID,
+                        notification.setContentIntent(pendingIntent).
+                        setContentTitle("До экзамена '${nextExam.examName}' осталось чуть меньше чем $hours ${formatWord(hours.toInt(), arrayOf("час", "часа", "часов"))}").build())
             }
             return true to ""
         }catch (e: Exception) {
@@ -99,6 +107,7 @@ class TimerService: Service() {
         if(isTimerActive)
             stopTimer()
     }
+
     override fun onBind(intent: Intent?): IBinder = binder
     inner class LocalBinder: Binder() {
         fun getService(): TimerService = this@TimerService

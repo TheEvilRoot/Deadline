@@ -13,10 +13,7 @@ import android.view.View
 import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
-import com.google.gson.GsonBuilder
-import com.google.gson.JsonArray
-import com.google.gson.JsonObject
-import com.google.gson.JsonParser
+import com.google.gson.*
 import com.nipunbirla.boxloader.BoxLoaderView
 import com.theevilroot.deadline.*
 import com.theevilroot.deadline.objects.*
@@ -103,9 +100,73 @@ class MainActivity: AppCompatActivity(), CallbackListener {
         file.writeText("[]")
         return parseConfig(file)
     }
+
+    private fun handlePreferenceFile(json: JsonElement): JsonObject? {
+        if(json.isJsonArray)
+            return assimilatePreferences(json.asJsonArray)
+        if(!json.isJsonObject)
+            return null
+        val obj = json.asJsonObject
+        return if(!obj.has("version")) {
+            if(obj.has("preferences") && obj["preferences"].isJsonArray)
+                assimilatePreferences(obj["preferences"].asJsonArray)
+            else null
+        }else {
+            if(obj["version"].asInt != TheHolder.preferenceVersion)
+                assimilatePreferences(obj["preferences"].asJsonArray)
+            else obj
+        }
+    }
+
+    private fun assimilatePreferences(array: JsonArray): JsonObject {
+        val obj = JsonObject().apply { addProperty("version", TheHolder.preferenceVersion) }
+        val preferences = JsonArray()
+        val jsonPreferences = array.map { it.asJsonObject }.map {
+            if(it["isGroup"].asBoolean)
+                Preference(true, it["title"].asString)
+            else
+                Preference(false, name = it["name"].asString, description = it["description"].asString, type = when(it["type"].asString.toLowerCase()) {
+                    "int" -> PT_INT
+                    "string" -> PT_STRING
+                    "time" -> PT_TIME
+                    "date" -> PT_DATE
+                    "boolean" -> PT_BOOLEAN
+                    else -> PT_STRING
+                }, value = it["value"].asString, id = it["id"].asString)
+        }
+        TheHolder.userPreferences.forEach { user ->
+            val preference = jsonPreferences.filter { json -> user.id == json.id }.getOrNull(0)
+            if(preference != null) {
+                preferences.add(JsonObject().apply {
+                    addProperty("isGroup", user.isGroup)
+                    if(user.isGroup) {
+                        addProperty("title", user.title)
+                    }else {
+                        addProperty("name", user.name)
+                        addProperty("description", user.description)
+                        addProperty("type", when (user.type) {
+                            PT_STRING -> "string"
+                            PT_BOOLEAN -> "boolean"
+                            PT_DATE -> "date"
+                            PT_TIME -> "time"
+                            PT_INT -> "int"
+                            else -> "string"
+                        })
+                        addProperty("value", preference.value)
+                        addProperty("id", user.id)
+                    }
+                })
+            }else{
+                preferences.add(user.toJsonObject())
+            }
+        }
+        obj.add("preferences", preferences)
+        return obj
+    }
+
     private fun parsePreferences(file: File): List<Preference> {
-        val json = JsonParser().parse(file.readText()).asJsonArray
-        return json.map { it.asJsonObject }.map {
+        val json = handlePreferenceFile(JsonParser().parse(file.readText())) ?: return writeAndGetPreferences(file)
+        return json["preferences"].asJsonArray.map { it.asJsonObject }.map {
             if(it["isGroup"].asBoolean)
                 Preference(true, it["title"].asString)
             else
@@ -217,13 +278,6 @@ class MainActivity: AppCompatActivity(), CallbackListener {
             }
         }
     }
-    private fun formatWord(count: Int, variants: Array<String>): String = if((count - count % 10) % 100 != 10) {
-                when {
-                    count % 10 == 1 -> variants[0]
-                    count % 10 in 2..4 -> variants[1]
-                    else -> variants[2]
-                }
-            }else{ variants[2] }
     override fun onDestroy() {
         super.onDestroy()
         if(serviceBound)

@@ -22,27 +22,20 @@ val timeFormat = SimpleDateFormat("HH:mm")
 val dateFormat = SimpleDateFormat("dd.MM.yyyy HH:mm")
 
 fun writePreferences(file: File) {
-    file.writeText(GsonBuilder().setPrettyPrinting().create().toJson(JsonArray().apply { TheHolder.userPreferences.map { JsonObject().apply {
-        addProperty("isGroup", it.isGroup)
-        if(it.isGroup) {
-            addProperty("title", it.title)
-        }else {
-            addProperty("name", it.name)
-            addProperty("description", it.description)
-            addProperty("type", when (it.type) {
-                PT_STRING -> "string"
-                PT_BOOLEAN -> "boolean"
-                PT_DATE -> "date"
-                PT_TIME -> "time"
-                PT_INT -> "int"
-                else -> "string"
-            })
-            addProperty("value", it.value)
-            addProperty("id", it.id)
-        }
-    } }.forEach { add(it) } }))
+    file.writeText(GsonBuilder().setPrettyPrinting().create().toJson(JsonObject().apply {
+        addProperty("version", TheHolder.preferenceVersion)
+        add("preferences", JsonArray().apply {
+            TheHolder.userPreferences.map(Preference::toJsonObject).forEach { add(it) }
+        })
+    }))
 }
-
+fun formatWord(count: Int, variants: Array<String>): String = if((count - count % 10) % 100 != 10) {
+    when {
+        count % 10 == 1 -> variants[0]
+        count % 10 in 2..4 -> variants[1]
+        else -> variants[2]
+    }
+}else{ variants[2] }
 /**
  * Bind View from activity with 'by' operator
  *

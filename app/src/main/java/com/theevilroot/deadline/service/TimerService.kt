@@ -16,7 +16,7 @@ import android.widget.Toast
 import com.theevilroot.deadline.R
 import com.theevilroot.deadline.TheHolder
 import com.theevilroot.deadline.activities.MainActivity
-import com.theevilroot.deadline.formatWord
+import com.theevilroot.deadline.utils.formatWord
 import java.util.*
 
 class TimerService: Service() {

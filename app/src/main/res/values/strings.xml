@@ -1,9 +1,7 @@
 <resources>
     <string name="app_name">>_&lt; Deadline >_&lt;</string>
-    <string name="text_days">%1$s\n%2$s</string>
-    <string name="text_hours">%1$s\n%2$s</string>
-    <string name="text_mins">%1$s\n%2$s</string>
-    <string name="text_secs">%1$s\n%2$s</string>
+    <string name="text_time_portrait">%1$s\n%2$s</string>
+    <string name="text_time_landscape">%1$s %2$s</string>
     <string name="text_count">До %1$d экзамена</string>
     <string name="text_nothing">Нету ничего!\nПоздравляю</string>
     <string name="text_error">Произошла критическая ошибка!</string>

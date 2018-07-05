@@ -3,7 +3,8 @@ package com.theevilroot.deadline.activities
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
-import android.graphics.Color
+import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import android.support.annotation.UiThread
@@ -12,8 +13,6 @@ import android.util.Log
 import android.view.View
 import android.widget.ImageButton
 import android.widget.TextView
-import android.widget.Toast
-import com.google.gson.*
 import com.nipunbirla.boxloader.BoxLoaderView
 import com.theevilroot.deadline.*
 import com.theevilroot.deadline.objects.*
@@ -21,11 +20,15 @@ import com.theevilroot.deadline.service.CallbackListener
 import com.theevilroot.deadline.service.CallbackType
 import com.theevilroot.deadline.service.TimerService
 import com.theevilroot.deadline.service.TimerServiceConnection
+import com.theevilroot.deadline.utils.*
 import java.io.File
 import kotlin.concurrent.thread
 
 class MainActivity: AppCompatActivity(), CallbackListener {
-    val layout = R.layout.main_activity
+
+    private val portaitLayout = R.layout.main_activity
+    private val landscapeLayout = R.layout.landscape_main_activity
+
     private val days: TextView by bind(R.id.days_view)
     private val minutes: TextView by bind(R.id.minutes_view)
     private val hours: TextView by bind(R.id.hours_view)
@@ -36,10 +39,10 @@ class MainActivity: AppCompatActivity(), CallbackListener {
     private val loader: BoxLoaderView by bind(R.id.loader)
     private val examSettings:ImageButton by bind(R.id.exam_settings_button)
     private val settings: ImageButton by bind(R.id.settings_button)
+
     private val slideIn by load(android.R.anim.slide_in_left)
     private val slideOut by load(android.R.anim.slide_out_right)
-    private val fadeIn by load(android.R.anim.fade_in)
-    private val fadeOut by load(android.R.anim.fade_out)
+
     private var service: TimerService? = null
     private var serviceBound = false
     private val serviceConnection = TimerServiceConnection(onConnect = { srv ->
@@ -51,12 +54,11 @@ class MainActivity: AppCompatActivity(), CallbackListener {
         serviceBound = false
         service = null
     })
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(layout)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.statusBarColor = Colors.secondBackgroundColor()
-        }
+        if(isLandscape()) { setContentView(landscapeLayout) }else { setContentView(portaitLayout) }
+        initSettings()
         settings.setColorFilter(Colors.iconsColor())
         examSettings.setColorFilter(Colors.iconsColor())
         examSettings.setOnClickListener {
@@ -75,6 +77,18 @@ class MainActivity: AppCompatActivity(), CallbackListener {
             startTimer()
         }
     }
+
+    private fun initSettings() {
+        requestedOrientation = if(!TheHolder.isScreenRotationEnabled()) {
+            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        }else{
+            ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            window.statusBarColor = Colors.secondBackgroundColor()
+        }
+    }
+
     private fun load() {
         loader.setSpeed(10)
         thread(true) {
@@ -92,103 +106,12 @@ class MainActivity: AppCompatActivity(), CallbackListener {
     }
     override fun onResume() {
         super.onResume()
-        if(TheHolder.needRefresh)
+        if(TheHolder.needRefresh) {
+            initSettings()
             startTimer()
-    }
-    private fun writeAndGetConfig(file: File): List<Exam> {
-        file.createNewFile()
-        file.writeText("[]")
-        return parseConfig(file)
-    }
-
-    private fun handlePreferenceFile(json: JsonElement): JsonObject? {
-        if(json.isJsonArray)
-            return assimilatePreferences(json.asJsonArray)
-        if(!json.isJsonObject)
-            return null
-        val obj = json.asJsonObject
-        return if(!obj.has("version")) {
-            if(obj.has("preferences") && obj["preferences"].isJsonArray)
-                assimilatePreferences(obj["preferences"].asJsonArray)
-            else null
-        }else {
-            if(obj["version"].asInt != TheHolder.preferenceVersion)
-                assimilatePreferences(obj["preferences"].asJsonArray)
-            else obj
         }
     }
 
-    private fun assimilatePreferences(array: JsonArray): JsonObject {
-        val obj = JsonObject().apply { addProperty("version", TheHolder.preferenceVersion) }
-        val preferences = JsonArray()
-        val jsonPreferences = array.map { it.asJsonObject }.map {
-            if(it["isGroup"].asBoolean)
-                Preference(true, it["title"].asString)
-            else
-                Preference(false, name = it["name"].asString, description = it["description"].asString, type = when(it["type"].asString.toLowerCase()) {
-                    "int" -> PT_INT
-                    "string" -> PT_STRING
-                    "time" -> PT_TIME
-                    "date" -> PT_DATE
-                    "boolean" -> PT_BOOLEAN
-                    else -> PT_STRING
-                }, value = it["value"].asString, id = it["id"].asString)
-        }
-        TheHolder.userPreferences.forEach { user ->
-            val preference = jsonPreferences.filter { json -> user.id == json.id }.getOrNull(0)
-            if(preference != null) {
-                preferences.add(JsonObject().apply {
-                    addProperty("isGroup", user.isGroup)
-                    if(user.isGroup) {
-                        addProperty("title", user.title)
-                    }else {
-                        addProperty("name", user.name)
-                        addProperty("description", user.description)
-                        addProperty("type", when (user.type) {
-                            PT_STRING -> "string"
-                            PT_BOOLEAN -> "boolean"
-                            PT_DATE -> "date"
-                            PT_TIME -> "time"
-                            PT_INT -> "int"
-                            else -> "string"
-                        })
-                        addProperty("value", preference.value)
-                        addProperty("id", user.id)
-                    }
-                })
-            }else{
-                preferences.add(user.toJsonObject())
-            }
-        }
-        obj.add("preferences", preferences)
-        return obj
-    }
-
-    private fun parsePreferences(file: File): List<Preference> {
-        val json = handlePreferenceFile(JsonParser().parse(file.readText())) ?: return writeAndGetPreferences(file)
-        return json["preferences"].asJsonArray.map { it.asJsonObject }.map {
-            if(it["isGroup"].asBoolean)
-                Preference(true, it["title"].asString)
-            else
-                Preference(false, name = it["name"].asString, description = it["description"].asString, type = when(it["type"].asString.toLowerCase()) {
-                    "int" -> PT_INT
-                    "string" -> PT_STRING
-                    "time" -> PT_TIME
-                    "date" -> PT_DATE
-                    "boolean" -> PT_BOOLEAN
-                    else -> PT_STRING
-                }, value = it["value"].asString, id = it["id"].asString)
-        }
-    }
-    private fun writeAndGetPreferences(file: File): List<Preference> {
-        file.createNewFile()
-        writePreferences(file)
-        return TheHolder.userPreferences
-    }
-    private fun parseConfig(file: File): List<Exam> {
-        val json = JsonParser().parse(file.readText()).asJsonArray
-        return json.map { it.asJsonObject }.map { Exam(it["name"].asString, it["date"].asLong) }
-    }
     @UiThread
     private fun onLoad(exams: List<Exam>, preferences: List<Preference>) {
         TheHolder.examList = exams.sortedBy { it.examDate }
@@ -202,6 +125,7 @@ class MainActivity: AppCompatActivity(), CallbackListener {
             startTimer()
         }
     }
+
     @UiThread
     private fun startTimer() {
         if(!serviceBound) {
@@ -230,10 +154,10 @@ class MainActivity: AppCompatActivity(), CallbackListener {
                     val s = data.getInt("seconds")
                     val i = data.getInt("exam")
                     val exam = TheHolder.examList[i]
-                    days.text = getString(R.string.text_days, String.format("%02d", d), formatWord(d, arrayOf("день", "дня", "дней")))
-                    hours.text = getString(R.string.text_hours, String.format("%02d", h), formatWord(h, arrayOf("час", "часа", "часов")))
-                    minutes.text = getString(R.string.text_mins, String.format("%02d", m), formatWord(m, arrayOf("минута", "минуты", "минут")))
-                    seconds.text = getString(R.string.text_secs, String.format("%02d", s), formatWord(s, arrayOf("секунда", "секунды", "секунд")))
+                    days.text = getString(R.string.text_time_portrait, String.format("%02d", d), formatWord(d, arrayOf("день", "дня", "дней")))
+                    hours.text = getString(R.string.text_time_portrait, String.format("%02d", h), formatWord(h, arrayOf("час", "часа", "часов")))
+                    minutes.text = getString(if(isLandscape()) R.string.text_time_landscape else R.string.text_time_portrait, String.format("%02d", m), formatWord(m, arrayOf("минута", "минуты", "минут")))
+                    seconds.text = getString(if(isLandscape()) R.string.text_time_landscape else R.string.text_time_portrait, String.format("%02d", s), formatWord(s, arrayOf("секунда", "секунды", "секунд")))
                     count.text = getString(R.string.text_count, i+1)
                     label.text = exam.examName
                     if(hours.visibility != View.VISIBLE ||
@@ -280,9 +204,12 @@ class MainActivity: AppCompatActivity(), CallbackListener {
     }
     override fun onDestroy() {
         super.onDestroy()
-        if(serviceBound)
+        if (serviceBound) {
             service!!.stopSelf()
-        unbindService(serviceConnection)
+            unbindService(serviceConnection)
+        }
     }
+
+    private fun isLandscape(): Boolean = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
 }

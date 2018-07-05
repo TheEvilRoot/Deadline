@@ -9,6 +9,8 @@ import android.support.v7.widget.Toolbar
 import android.view.MenuItem
 import com.theevilroot.deadline.*
 import com.theevilroot.deadline.adapters.PreferencesAdapter
+import com.theevilroot.deadline.utils.bind
+import com.theevilroot.deadline.utils.writePreferences
 import java.io.File
 
 /**
@@ -51,6 +53,7 @@ class PreferencesActivity: AppCompatActivity() {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         when(item.itemId) {
             android.R.id.home -> {
+                TheHolder.needRefresh = true
                 this.finish()
             }
         }

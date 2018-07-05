@@ -9,7 +9,7 @@ import android.view.ViewGroup
 import android.widget.TextView
 import com.theevilroot.deadline.R
 import com.theevilroot.deadline.Colors
-import com.theevilroot.deadline.bindView
+import com.theevilroot.deadline.utils.bindView
 import com.theevilroot.deadline.objects.Exam
 import java.text.SimpleDateFormat
 

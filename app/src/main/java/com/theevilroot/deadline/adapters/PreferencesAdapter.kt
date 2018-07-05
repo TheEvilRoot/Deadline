@@ -1,16 +1,16 @@
 package com.theevilroot.deadline.adapters
 
-import android.graphics.Color
+import android.annotation.SuppressLint
 import android.support.v7.widget.RecyclerView
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
-import android.widget.EditText
-import android.widget.Switch
-import android.widget.TextView
+import android.widget.*
 import com.theevilroot.deadline.*
 import com.theevilroot.deadline.objects.*
+import com.theevilroot.deadline.utils.bindView
+import com.theevilroot.deadline.utils.hide
+import java.text.SimpleDateFormat
 
 class PreferencesAdapter: RecyclerView.Adapter<PreferencesAdapter.PreferenceViewHolder>() {
 
@@ -28,8 +28,7 @@ class PreferencesAdapter: RecyclerView.Adapter<PreferencesAdapter.PreferenceView
         private val description: TextView by bindView(R.id.preference_entry_description)
         private val switch: Switch by bindView(R.id.preference_entry_switch)
         private val text: TextView by bindView(R.id.preference_entry_text)
-        private val editField: EditText by bindView(R.id.preference_edit_field)
-        private val editSave: Button by bindView(R.id.preference_edit_save)
+        @SuppressLint("SimpleDateFormat")
         fun bind(preference: Preference) {
             if(preference.isGroup) {
                 name.hide()
@@ -42,68 +41,35 @@ class PreferencesAdapter: RecyclerView.Adapter<PreferencesAdapter.PreferenceView
                 title.hide()
                 name.text = preference.name
                 description.text = preference.description
-                switch.setOnCheckedChangeListener { buttonView, isChecked ->
-                    preference.value = isChecked.toString()
+                switch.setOnCheckedChangeListener { _, isChecked ->
+                    preference.value = PreferenceBoolean(isChecked)
                 }
-                when (preference.type) {
-                    PT_BOOLEAN -> {
-                        val value = preference.type.parse(preference.value)
-                        text.hide()
-                        switch.isChecked = value!!
-                    }
-                    PT_STRING -> {
-                        val value = preference.type.parse(preference.value)
-                        switch.hide()
-                        text.text = value
-                    }
-                    PT_INT -> {
-                        val value = preference.type.parse(preference.value)
-                        switch.hide()
-                        text.text = value.toString()
-                    }
-                    PT_TIME -> {
-                        switch.hide()
-                        text.text = preference.value
-                    }
-                    PT_DATE -> {
-                        switch.hide()
-                        text.text = preference.value
-                    }
-                }
-                editField.addTextChangedListener(TextWatcherWrapper(onTextChangedEvent = {s, start, before,count ->
-                    if(editField.text.toString() == preference.value)
-                        editSave.text = "Отмена"
-                    else
-                        editSave.text = "Сохранить"
-                }))
-                editSave.setOnClickListener {
-                    if(preference.value == editField.text.toString()) {
-                        editField.hide()
-                        editSave.hide()
-                        text.show()
-                        return@setOnClickListener
-                    }
-                    if(preference.type.parse(editField.text.toString()) == null) {
-                        editField.setTextColor(Color.RED)
-                        return@setOnClickListener
-                    }
-                    preference.value = editField.text.toString()
-                    text.text = editField.text.toString()
-                    editField.hide()
-                    editSave.hide()
-                    text.show()
-                }
-                if (preference.type != PT_BOOLEAN) {
-                    itemView.setOnClickListener {
-                        if(editField.visibility == View.VISIBLE || editSave.visibility == View.VISIBLE) {
-                            text.show()
-                            editField.hide()
-                            editSave.hide()
-                        }else{
+                with(preference.value) {
+                    when {
+                        isBoolean -> {
+                            val value = boolean.booleanValue
                             text.hide()
-                            editField.show()
-                            editSave.show()
-                            editField.setText(preference.value)
+                            switch.isChecked = value
+                        }
+                        isString -> {
+                            val value = string.stringValue
+                            switch.hide()
+                            text.text = value
+                        }
+                        isInt-> {
+                            val value = int.intValue
+                            switch.hide()
+                            text.text = value.toString()
+                        }
+                        isFloat -> {
+                            val value = float.floatValue
+                            switch.hide()
+                            text.text = value.toString()
+                        }
+                        isDate -> {
+                            val datePreference = date
+                            switch.hide()
+                            text.text = SimpleDateFormat(datePreference.pattern).format(datePreference.dateValue)
                         }
                     }
                 }

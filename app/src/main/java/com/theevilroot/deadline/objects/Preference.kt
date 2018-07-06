@@ -1,9 +1,10 @@
 package com.theevilroot.deadline.objects
 
 import com.google.gson.JsonObject
+import com.theevilroot.deadline.utils.parseValue
 
 class Preference(val id: String = "",
-                 val title: String = "",
+                 val title: String = "Я ЕБАНУЛСЯ",
                  val name: String = "",
                  val description: String = "",
                  var value:PreferenceValue = PreferenceValue(Unit),
@@ -34,5 +35,17 @@ class Preference(val id: String = "",
             add("value", valueObj)
         }
         return json
+    }
+
+    companion object {
+        fun fromJson(it: JsonObject) =
+                if(it.has("isGroup") && it["isGroup"].asBoolean) {
+                    Preference(isGroup = true, title = it["title"].asString)
+                } else {
+                    Preference(id = it["id"].asString,
+                            name = it["name"].asString,
+                            description = it["description"].asString,
+                            value = parseValue(it["value"].asJsonObject))
+                }
     }
 }

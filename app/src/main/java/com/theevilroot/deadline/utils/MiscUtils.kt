@@ -9,6 +9,7 @@ import android.view.View
 import android.view.animation.Animation
 import android.view.animation.AnimationUtils
 import android.widget.TextView
+import java.lang.reflect.Executable
 import java.text.SimpleDateFormat
 
 @SuppressLint("SimpleDateFormat")
@@ -16,7 +17,16 @@ val timeFormat = SimpleDateFormat("HH:mm")
 @SuppressLint("SimpleDateFormat")
 val dateFormat = SimpleDateFormat("dd.MM.yyyy HH:mm")
 
-
+@SuppressLint("SimpleDateFormat")
+fun isDateValidForPattern(pattern: String, str: String): Boolean =
+        isDateValidForPattern(SimpleDateFormat(pattern), str)
+fun isDateValidForPattern(sdf: SimpleDateFormat, str: String): Boolean =
+        try{
+            sdf.parse(str)
+            true
+        }catch (e: Exception) {
+            false
+        }
 fun formatWord(count: Int, variants: Array<String>): String = if((count - count % 10) % 100 != 10) {
     when {
         count % 10 == 1 -> variants[0]

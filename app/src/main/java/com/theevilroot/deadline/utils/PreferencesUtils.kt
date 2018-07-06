@@ -7,26 +7,47 @@ import java.io.File
 import java.util.*
 
 fun handlePreferenceFile(json: JsonElement): JsonObject? {
+    if(json.isJsonArray)
+        return assimilatePreference(json.asJsonArray)
     if(!json.isJsonObject)
         return null
     val obj = json.asJsonObject
-    if(obj.has("version") && obj["version"].asInt == TheHolder.preferenceVersion)
-        return obj
-    return null
+    if(!obj.has("version"))
+        return if(obj.has("preferences") && obj["preferences"].isJsonArray)
+            assimilatePreference(obj["preferences"].asJsonArray)
+        else
+            null
+    else
+        if(obj["version"].asInt == TheHolder.preferenceVersion && obj["preferences"].asJsonArray.size() == TheHolder.userPreferences.size)
+            return obj
+        else
+            return assimilatePreference(obj["preferences"].asJsonArray)
+}
+
+fun assimilatePreference(json: JsonArray):JsonObject {
+    val ret = JsonObject()
+    ret.addProperty("version", TheHolder.preferenceVersion)
+    val array = JsonArray()
+    val user = json.map { Preference.fromJson(it.asJsonObject) }
+    TheHolder.userPreferences.forEach {current ->
+        with(user.filter { it.id == current.id }.getOrNull(0)) {
+            if(this != null) {
+                array.add(current.apply {
+                    this.value = this@with.value
+                }.toJson())
+            }else{
+                array.add(current.toJson())
+            }
+        }
+    }
+    ret.add("preferences", array)
+    return ret
 }
 
 fun parsePreferences(file: File): List<Preference> {
     val json = handlePreferenceFile(JsonParser().parse(file.readText()))
             ?: return writeAndGetPreferences(file)
-    return json["preferences"].asJsonArray.map { it.asJsonObject }.map {
-        if(it.has("isGroup") && it["isGroup"].asBoolean)
-            Preference(isGroup = true, title = it["title"].asString)
-        else
-            Preference(id = it["id"].asString,
-                    name = it["name"].asString,
-                    description = it["description"].asString,
-                    value = parseValue(it["value"].asJsonObject))
-    }
+    return json["preferences"].asJsonArray.map { it.asJsonObject }.map { Preference.fromJson(it) }
 }
 
 fun parseValue(value: JsonObject): PreferenceValue =

@@ -3,7 +3,6 @@ package com.theevilroot.deadline.activities
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
-import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import android.support.annotation.UiThread
@@ -12,10 +11,6 @@ import android.util.Log
 import android.view.View
 import android.widget.ImageButton
 import android.widget.TextView
-import android.widget.Toast
-import com.google.gson.GsonBuilder
-import com.google.gson.JsonArray
-import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.nipunbirla.boxloader.BoxLoaderView
 import com.theevilroot.deadline.*
@@ -226,9 +221,10 @@ class MainActivity: AppCompatActivity(), CallbackListener {
             }else{ variants[2] }
     override fun onDestroy() {
         super.onDestroy()
-        if(serviceBound)
+        if(serviceBound) {
             service!!.stopSelf()
-        unbindService(serviceConnection)
+            unbindService(serviceConnection)
+        }
     }
 
 }

@@ -14,7 +14,6 @@ import android.support.v7.widget.RecyclerView
 import android.support.v7.widget.Toolbar
 import android.view.Menu
 import android.view.MenuItem
-import android.view.View
 import android.widget.*
 import com.codekidlabs.storagechooser.StorageChooser
 import com.google.gson.GsonBuilder
@@ -35,48 +34,48 @@ import kotlin.concurrent.thread
 class ExamsActivity: AppCompatActivity() {
 
     val layout = R.layout.exams_activity
-    private val slideIn by load(android.R.anim.slide_in_left)
-    private val slideOut by load(android.R.anim.slide_out_right)
     private val list: RecyclerView by bind(R.id.exams_list)
-    private val bottomToolbar: LinearLayout by bind(R.id.exams_bottom_toolbar)
-    private val bottomToolbarEdit: ImageButton by bind(R.id.exams_bottom_toolbar_edit)
-    private val bottomToolbarDelete: ImageButton by bind(R.id.exams_bottom_toolbar_delete)
-    private val bottomToolbarCancel: ImageButton by bind(R.id.exams_bottom_toolbar_cancel)
     private val toolBar: Toolbar by bind(R.id.toolbar)
     private var isChanged: Boolean = false
-    private val adapter = ExamAdapter({ exam, pos ->
-        handleUnselection(exam, pos)
-    }, { exam, pos ->
-        handleSelection(exam, pos)
+    private val adapter = ExamAdapter({ _, pos ->
+        handleUnselection(pos)
+    }, { _, pos ->
+        handleSelection(pos)
         true
     })
-    private fun handleSelection(exam: Exam, pos: Int) {
+
+    private var editToolbarState = Pair(false, true)
+
+    private fun handleSelection(pos: Int) {
         if(!buffer[pos].selected) {
             buffer[pos].selected = true
             adapter.notifyItemChanged(pos)
-            if(bottomToolbar.visibility != View.VISIBLE) {
-                bottomToolbar.show(slideIn)
-            }
         }
-        val single = buffer.filter { it.selected }.size == 1
-        bottomToolbarEdit.isEnabled = single
-        bottomToolbarEdit.setColorFilter(if(single) Colors.activeColor() else Colors.inactiveColor())
+        showEditToolbar(buffer.filter { it.selected }.size == 1)
     }
-    private fun handleUnselection(exam: Exam, pos: Int) {
+
+    private fun handleUnselection(pos: Int) {
         if(buffer[pos].selected) {
             buffer[pos].selected = false
             adapter.notifyItemChanged(pos)
             val selectedCount = buffer.filter { it.selected }.size
-
-            if(bottomToolbar.visibility == View.VISIBLE && selectedCount == 0) {
-                bottomToolbar.hide(slideOut)
-            }
-            if(selectedCount < 2) {
-                bottomToolbarEdit.isEnabled = true
-                bottomToolbarEdit.setColorFilter(Colors.activeColor())
-            }
+            if(selectedCount == 0)
+                hideEditToolbar()
+            else
+                showEditToolbar(selectedCount < 2)
         }
     }
+
+    private fun showEditToolbar(editable: Boolean) {
+        editToolbarState = true to editable
+        invalidateOptionsMenu()
+    }
+
+    private fun hideEditToolbar() {
+        editToolbarState = false to true
+        invalidateOptionsMenu()
+    }
+
     private val buffer: EventList<Exam> = EventList(ArrayList(), object: ListEventHandler<Exam> {
         override fun onAdd(t: Exam?) { this@ExamsActivity.isChanged = true }
         override fun onAdd(t: MutableCollection<out Exam>?) { this@ExamsActivity.isChanged = true }
@@ -103,57 +102,20 @@ class ExamsActivity: AppCompatActivity() {
         list.layoutManager = LinearLayoutManager(this)
         list.adapter = adapter
         adapter.initExams(buffer)
-        bottomToolbarEdit.setOnClickListener {
-            val exam = buffer.firstOrNull { it.selected } ?: return@setOnClickListener
-            showExamEdit("Редактировать экзамен",
-                    {name, date, time, cancel, dialog ->
-                        name.setText(exam.examName)
-                        val dateString = dateFormat.format(exam.examDate)
-                        date.setText(dateString.split(" ")[0])
-                        time.setText(dateString.split(" ")[1])
-                    },
-                    {name, _, time, _,_ ->
-                        if(name.text.isBlank() || time.text.isBlank()) {
-                            Toast.makeText(this, "Заполните все поля", Toast.LENGTH_SHORT).show()
-                            return@showExamEdit false
-                        }
-                        true
-                    },
-                    { name, date, time, _, _ ->
-                        "Изменить имя на '${name.text}', дату и время на ${date.text} ${time.text}?"
-                    },
-                    { name, date, time, _, dialog,di ->
-                        try {
-                            val d = dateFormat.parse("${date.text} ${time.text}")
-                            buffer[buffer.indexOf(exam)] = Exam(name.text.toString(), d.time)
-                            adapter.notifyDataSetChanged()
-                            name.text.clear()
-                            time.text.clear()
-                            dialog.dismiss()
-                            bottomToolbar.hide(slideOut)
-                        }catch (e: Exception) {
-                            e.printStackTrace()
-                            di.dismiss()
-                        }
-                    },
-                    {_, _, _, _, dialog, di ->
-                        di.dismiss()
-                        dialog.dismiss()
-                    })
-        }
-        bottomToolbarDelete.setOnClickListener {
-            buffer.removeAll { it.selected }
-            adapter.notifyDataSetChanged()
-            bottomToolbar.hide(slideOut)
-        }
-        bottomToolbarCancel.setOnClickListener {
-            buffer.forEach { it.selected = false }
-            adapter.notifyDataSetChanged()
-            bottomToolbar.hide(slideOut)
-        }
     }
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        menuInflater.inflate(R.menu.exams_toolbar, menu)
+        if(editToolbarState.first) {
+            supportActionBar!!.setHomeAsUpIndicator(R.drawable.close)
+            menuInflater.inflate(R.menu.exams_edit_toolbar, menu)
+            for(i in 0 until menu.size()) {
+                if (menu.getItem(i).itemId == R.id.tb_exam_edit) {
+                    menu.getItem(i).isEnabled = editToolbarState.second
+                }
+            }
+        } else {
+            supportActionBar!!.setHomeAsUpIndicator(null)
+            menuInflater.inflate(R.menu.exams_toolbar, menu)
+        }
         return true
     }
     private fun saveExams(file: File, onSuccess: () -> Unit, onError: (String) -> Unit) {
@@ -181,26 +143,32 @@ class ExamsActivity: AppCompatActivity() {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         when(item.itemId) {
             android.R.id.home ->  {
-                if(!isChanged) {
-                    this.finish()
-                    return true
-                }
-                showAlert("Отменить изменения?", "", null, "Сохранить и выйти", {di ->
-                    TheHolder.examList = buffer.sortedBy { it.examDate }
-                    saveExams(File(filesDir, "config"), {
-                        Toast.makeText(this, "Файл конфигурации обновлен! Измения сохранены", Toast.LENGTH_SHORT).show()
-                        TheHolder.needRefresh = true
-                        this.finish()
-                    },{msg ->
-                        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
-                    })
-                }, "Отменить", {di ->
+                if(editToolbarState.first) {
+                    hideEditToolbar()
                     buffer.forEach { it.selected = false }
-                    di.dismiss()
-                    this.finish()
-                }, "Закрыть", {di ->
-                    di.dismiss()
-                }).show()
+                    adapter.notifyDataSetChanged()
+                }else {
+                    if (!isChanged) {
+                        this.finish()
+                        return true
+                    }
+                    showAlert("Отменить изменения?", "", null, "Сохранить и выйти", {
+                        TheHolder.examList = buffer.sortedBy { it.examDate }
+                        saveExams(File(filesDir, "config"), {
+                            Toast.makeText(this, "Файл конфигурации обновлен! Измения сохранены", Toast.LENGTH_SHORT).show()
+                            TheHolder.needRefresh = true
+                            this.finish()
+                        }, { msg ->
+                            Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+                        })
+                    }, "Отменить", { di ->
+                        buffer.forEach { it.selected = false }
+                        di.dismiss()
+                        this.finish()
+                    }, "Закрыть", { di ->
+                        di.dismiss()
+                    }).show()
+                }
             }
             R.id.exams_add -> {
                 showExamEdit("Новый экзамен",
@@ -253,16 +221,10 @@ class ExamsActivity: AppCompatActivity() {
                 }else{
                     val selected = buffer.filter { it.selected }
                     val toExport = if(selected.isNotEmpty()) { selected }else{ buffer }
-                    AlertDialog.Builder(this).setTitle("Экспортировать экзамены").setMessage("Вы действительно хотите экспортировать данные экзамены: \n${toExport.map { it.examName }.reduce { s1, s2 -> "$s1\n$s2" }}").setPositiveButton("Да", {di, _ ->
+                    AlertDialog.Builder(this).setTitle("Экспортировать экзамены").setMessage("Вы действительно хотите экспортировать данные экзамены: \n${toExport.map { it.examName }.reduce { s1, s2 -> "$s1\n$s2" }}").setPositiveButton("Да") { di, _ ->
                         val json = JsonArray()
                         toExport.forEach { json.add(JsonObject().apply { this.addProperty("name", it.examName); this.addProperty("date", it.examDate) }) }
-                        val chooser = StorageChooser.Builder().
-                                withActivity(this).
-                                withFragmentManager(fragmentManager).
-                                withMemoryBar(true).
-                                allowCustomPath(true).
-                                setType(StorageChooser.DIRECTORY_CHOOSER).
-                                disableMultiSelect().build()
+                        val chooser = StorageChooser.Builder().withActivity(this).withFragmentManager(fragmentManager).withMemoryBar(true).allowCustomPath(true).setType(StorageChooser.DIRECTORY_CHOOSER).disableMultiSelect().build()
                         chooser.setOnSelectListener {
                             val dir = File(it)
                             if(!dir.exists() || !dir.isDirectory) {
@@ -279,9 +241,9 @@ class ExamsActivity: AppCompatActivity() {
                             Toast.makeText(this, "Экзамены экспортированы в ${file.absolutePath}", Toast.LENGTH_LONG).show()
                         }
                         chooser.show()
-                    }).setNegativeButton("Нет!", {di,_ -> di.dismiss()}).setNeutralButton("Что это значит?", {di, _ ->
+                    }.setNegativeButton("Нет!") { di, _ -> di.dismiss()}.setNeutralButton("Что это значит?") { _, _ ->
                         Toast.makeText(this, "Guide", Toast.LENGTH_LONG).show()
-                    }).create().show()
+                    }.create().show()
                 }
             }
             R.id.exams_import -> {
@@ -304,7 +266,7 @@ class ExamsActivity: AppCompatActivity() {
                         showAlert(title = "Импорт экзаменов",
                                 message = "Заменить нынешний список экзаменов новыми или слить их в один?",
                                 icon = resources.getDrawable(R.drawable.ic_import),
-                                positiveText = "Соеденить в один", positive = { di ->
+                                positiveText = "Соеденить в один", positive = { _ ->
                             newExams.forEach {
                                 if (!buffer.isContains(it))
                                     buffer.add(it)
@@ -312,7 +274,7 @@ class ExamsActivity: AppCompatActivity() {
                                     Toast.makeText(this, "Экзамен ${it.examName} уже добален", Toast.LENGTH_SHORT).show()
                             }
                             adapter.notifyDataSetChanged()
-                        }, neutralText = "Заменить новыми", neutral = { di ->
+                        }, neutralText = "Заменить новыми", neutral = { _ ->
                             buffer.clear()
                             buffer.addAll(newExams)
                             adapter.notifyDataSetChanged()
@@ -327,9 +289,53 @@ class ExamsActivity: AppCompatActivity() {
                 }
                 chooser.show()
             }
+            R.id.tb_exam_edit -> {
+                val exam = buffer.firstOrNull { it.selected } ?: return false
+                showExamEdit("Редактировать экзамен",
+                        {name, date, time, _, _ ->
+                            name.setText(exam.examName)
+                            val dateString = dateFormat.format(exam.examDate)
+                            date.setText(dateString.split(" ")[0])
+                            time.setText(dateString.split(" ")[1])
+                        },
+                        {name, _, time, _,_ ->
+                            if(name.text.isBlank() || time.text.isBlank()) {
+                                Toast.makeText(this, "Заполните все поля", Toast.LENGTH_SHORT).show()
+                                return@showExamEdit false
+                            }
+                            true
+                        },
+                        { name, date, time, _, _ ->
+                            "Изменить имя на '${name.text}', дату и время на ${date.text} ${time.text}?"
+                        },
+                        { name, date, time, _, dialog,di ->
+                            try {
+                                val d = dateFormat.parse("${date.text} ${time.text}")
+                                buffer[buffer.indexOf(exam)] = Exam(name.text.toString(), d.time)
+                                adapter.notifyDataSetChanged()
+                                name.text.clear()
+                                time.text.clear()
+                                dialog.dismiss()
+                                hideEditToolbar()
+                            }catch (e: Exception) {
+                                e.printStackTrace()
+                                di.dismiss()
+                            }
+                        },
+                        {_, _, _, _, dialog, di ->
+                            di.dismiss()
+                            dialog.dismiss()
+                        })
+            }
+            R.id.tb_exam_delete -> {
+                buffer.removeAll { it.selected }
+                adapter.notifyDataSetChanged()
+                hideEditToolbar()
+            }
         }
         return super.onOptionsItemSelected(item)
     }
+    @SuppressLint("InflateParams")
     private fun showExamEdit(title: String,
                              prepareFunc: (EditText, EditText, EditText, Button, Dialog) -> Unit,
                              saveCondition: (EditText, EditText, EditText, Button, Dialog) -> Boolean,
@@ -354,11 +360,11 @@ class ExamsActivity: AppCompatActivity() {
             AlertDialog.Builder(this).
                     setTitle("Подтверждение").
                     setMessage(acceptMessage(name, date, time, cancel, dialog)).
-                    setPositiveButton("Да", {di, _ ->
+                    setPositiveButton("Да") { di, _ ->
                         onAccept(name, date, time, cancel, dialog, di)
-                    }).setNegativeButton("Не-а", {di, _ ->
+                    }.setNegativeButton("Не-а") { di, _ ->
                 onDenied(name, date, time, cancel, dialog, di)
-            }).create().show()
+            }.create().show()
         }
 
         dialog.show()
@@ -372,11 +378,11 @@ class ExamsActivity: AppCompatActivity() {
                           negative: (DialogInterface) -> Unit = {_ -> },
                           neutralText: String? = null,
                           neutral: (DialogInterface) -> Unit = {_ -> }): AlertDialog {
-        val builder = AlertDialog.Builder(this).setTitle(title).setMessage(message).setPositiveButton(positiveText, {di,_ -> positive(di)})
+        val builder = AlertDialog.Builder(this).setTitle(title).setMessage(message).setPositiveButton(positiveText) { di, _ -> positive(di)}
         if(negativeText != null)
-            builder.setNegativeButton(negativeText, {di, _ -> negative(di)})
+            builder.setNegativeButton(negativeText) { di, _ -> negative(di)}
         if(negativeText != null)
-            builder.setNeutralButton(neutralText, {di, _ -> neutral(di)})
+            builder.setNeutralButton(neutralText) { di, _ -> neutral(di)}
         if(icon != null)
             builder.setIcon(icon)
         return builder.create()

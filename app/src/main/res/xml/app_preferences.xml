@@ -15,4 +15,11 @@
             android:title="Screen rotation"
             android:summary="Allow rotate screen when application is on screen" />
     </PreferenceCategory>
+    <PreferenceCategory android:title="Theme">
+        <CheckBoxPreference android:key="themes_enabled"
+            android:title="Enable themes"
+            android:summary="Enable theme color changes"
+            android:enabled="false"
+            android:defaultValue="false"/>
+    </PreferenceCategory>
 </PreferenceScreen>

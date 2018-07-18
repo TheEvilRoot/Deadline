@@ -26,47 +26,4 @@
         app:layout_constraintTop_toBottomOf="@+id/toolbar"
         tools:listitem="@layout/exam_layout" />
 
-    <LinearLayout
-        android:id="@+id/exams_bottom_toolbar"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="#ffffff"
-        android:orientation="horizontal"
-        android:padding="8dp"
-        android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
-
-        <ImageButton
-            android:id="@+id/exams_bottom_toolbar_edit"
-            android:layout_width="wrap_content"
-            android:layout_height="32dp"
-            android:layout_weight="0.33"
-            android:adjustViewBounds="true"
-            android:background="@android:color/transparent"
-            android:scaleType="fitCenter"
-            app:srcCompat="@drawable/pencil" />
-
-        <ImageButton
-            android:id="@+id/exams_bottom_toolbar_delete"
-            android:layout_width="wrap_content"
-            android:layout_height="32dp"
-            android:layout_weight="0.33"
-            android:adjustViewBounds="true"
-            android:background="@android:color/transparent"
-            android:scaleType="fitCenter"
-            app:srcCompat="@drawable/delete_forever" />
-
-        <ImageButton
-            android:id="@+id/exams_bottom_toolbar_cancel"
-            android:layout_width="wrap_content"
-            android:layout_height="32dp"
-            android:layout_weight="0.33"
-            android:adjustViewBounds="true"
-            android:background="@android:color/transparent"
-            android:scaleType="fitCenter"
-            app:srcCompat="@drawable/close" />
-    </LinearLayout>
-
 </android.support.constraint.ConstraintLayout>

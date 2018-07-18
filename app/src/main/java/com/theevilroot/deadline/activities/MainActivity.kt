@@ -3,7 +3,7 @@ package com.theevilroot.deadline.activities
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ActivityInfo
+    import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
@@ -57,8 +57,10 @@ class MainActivity: AppCompatActivity(), CallbackListener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            window.statusBarColor = Colors.secondBackgroundColor()
+        }
         if(isLandscape()) { setContentView(landscapeLayout) }else { setContentView(portaitLayout) }
-        initSettings()
         settings.setColorFilter(Colors.iconsColor())
         examSettings.setColorFilter(Colors.iconsColor())
         examSettings.setOnClickListener {
@@ -78,26 +80,13 @@ class MainActivity: AppCompatActivity(), CallbackListener {
         }
     }
 
-    private fun initSettings() {
-        requestedOrientation = if(!TheHolder.isScreenRotationEnabled()) {
-            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-        }else{
-            ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.statusBarColor = Colors.secondBackgroundColor()
-        }
-    }
-
     private fun load() {
         loader.setSpeed(10)
         thread(true) {
             try{
                 val config = File(filesDir, "config")
-                val prefs = File(filesDir, "preferences")
                 val exams = if(config.exists()) parseConfig(config) else writeAndGetConfig(config)
-                val preferences = if(prefs.exists()) parsePreferences(prefs) else writeAndGetPreferences(prefs)
-                runOnUiThread { onLoad(exams, preferences) }
+                runOnUiThread { onLoad(exams) }
             }catch (e: Exception) {
                 runOnUiThread { onError(e) }
             }
@@ -107,15 +96,13 @@ class MainActivity: AppCompatActivity(), CallbackListener {
     override fun onResume() {
         super.onResume()
         if(TheHolder.needRefresh) {
-            initSettings()
             startTimer()
         }
     }
 
     @UiThread
-    private fun onLoad(exams: List<Exam>, preferences: List<Preference>) {
+    private fun onLoad(exams: List<Exam>) {
         TheHolder.examList = exams.sortedBy { it.examDate }
-        TheHolder.userPreferences = preferences
         TheHolder.isConfigLoaded = true
         if(exams.isEmpty()) {
             alert.text = getString(R.string.text_nothing)

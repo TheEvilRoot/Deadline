@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <PreferenceCategory  android:title="General">
+        <SwitchPreference android:key="notification"
+            android:title="Notifications"
+            android:summary="Send notifications"
+            android:summaryOn="Yes"
+            android:summaryOff="No" />
+        <SwitchPreference android:key="check_for_updates"
+            android:title="Check for updates"
+            android:summary="Allow application for check for updates in background" />
+    </PreferenceCategory>
+    <PreferenceCategory android:title="UI">
+        <SwitchPreference android:key="screen_rotation"
+            android:title="Screen rotation"
+            android:summary="Allow rotate screen when application is on screen" />
+    </PreferenceCategory>
+</PreferenceScreen>
